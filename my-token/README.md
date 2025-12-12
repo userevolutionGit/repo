@@ -99,7 +99,14 @@ The `mint-nft.yaml` file contains the "spell" (the Charm metadata and transactio
 cat ./spells/mint-nft.yaml | envsubst | charms spell check --prev-txs=${prev_txs} --app-bins=${app_bin}
 ```
 
+```sh
+cat ./spells/mint-nft.yaml | envsubst
+```
+
 If successful, this command validates that the Wasm application logic correctly handles the minting of the reference NFT and initializes the total supply state.
 
 ```
 ```
+
+FAUCET : 
+https://faucet.testnet4.dev
