@@ -109,4 +109,7 @@ If successful, this command validates that the Wasm application logic correctly 
 ```
 
 FAUCET : 
-https://faucet.testnet4.dev
+https://coinfaucet.eu/en/btc-testnet4/
+
+
+bitcoin-cli -testnet4  -rpcwallet=testwallet getbalance
