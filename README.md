@@ -1,129 +1,193 @@
-# Preconfig 
-   ```bash
+This document consolidates and explains the steps for setting up a Bitcoin Core development environment on macOS (using Homebrew) and outlines the process for creating, building, and verifying an application using the **Charms** protocol.
+
+This is a comprehensive guide for full-stack Bitcoin development, managing the node, wallets, and the application logic.
+
+-----
+
+````markdown
+# 💻 Bitcoin & Charms Development Environment Setup (macOS)
+
+This guide walks through setting up Bitcoin Core for Testnet4 development and introduces the key commands for building Charms applications, which enable programmable assets on Bitcoin.
+
+## 🚀 Part 1: Bitcoin Core Setup
+
+This section focuses on installing Bitcoin Core, configuring it for **Testnet4** (a newer Bitcoin test network), and managing the node via `bitcoin-cli`.
+
+### 1. Preconfiguration (Install & Verify)
+
+Install Bitcoin Core using the Homebrew package manager and verify the installed client version.
+
+```bash
+# Install Bitcoin Core via Homebrew
 brew install bitcoin
-```
- ```bash
+
+# Verify the installed client version
 bitcoin-cli --version 
-```
+# Expected Output: Bitcoin Core RPC client version v30.0.0 (or newer)
+````
 
-Bitcoin Core RPC client version v30.0.0
+### 2\. Configure for Testnet4
 
-When you run brew install bitcoin, a bitcoin.conf file is not created by default. You typically have to create it yourself.
-# Original Docs
+By default, Homebrew does not create the necessary `bitcoin.conf` file. You must create it in the correct directory and configure it for Testnet4.
 
-[Charms](https://docs.charms.dev/guides/charms-apps/get-started/)
-
-~/Library/Application Support/Bitcoin/bitcoin.conf
- ```bash
+```bash
+# 1. Create the necessary directory structure for Bitcoin Core config (macOS default path)
 mkdir -p ~/Library/Application\ Support/Bitcoin
+
+# 2. Open the configuration file in the nano editor
 nano ~/Library/Application\ Support/Bitcoin/bitcoin.conf
 ```
-This guide assumes a bitcoin node running with the following configuration
 
-server=1
-testnet4=1
-txindex=1
-addresstype=bech32m
-changetype=bech32m
+**Configuration Content:**
+Add the following lines to the `bitcoin.conf` file to enable server mode, Testnet4, transaction indexing, and the modern bech32m address types.
+
 ```
-## Create alias 
-   ```bash
-alias b=bitcoin-cli
+server=1              # Enables the RPC server for bitcoin-cli access
+testnet4=1            # Runs the node on the Testnet4 chain
+txindex=1             # Indexes all transactions (required for Charms and UTXO lookup)
+addresstype=bech32m   # Default address type for new addresses (Taproot)
+changetype=bech32m    # Default address type for change outputs
 ```
-# Start the server
- ```bash
+
+### 3\. Start & Test the Bitcoin Server
+
+Start the `bitcoind` daemon, which is the backend process that downloads the Testnet4 blockchain and listens for RPC commands.
+
+```bash
+# Start the Bitcoin Core service using Homebrew (runs bitcoind in the background)
 brew services start bitcoin
-```
-# Test if running 
- ```bash
+
+# Optional: Restart the service if you made changes to bitcoin.conf
+# brew services restart bitcoin
+
+# Test if the server is running and synchronized
+# This command fetches the blockchain status.
 bitcoin-cli getblockchaininfo
 ```
 
-# Stop the server
- ```bash
-bitcoin-cli stop
+### 4\. Setup Command Alias
+
+Create a simple alias to shorten the common `bitcoin-cli` command to `b`.
+
+```bash
+alias b=bitcoin-cli
+
+# Example Usage:
+# b getblockchaininfo
 ```
 
+### 5\. Essential `bitcoin-cli` Commands
 
-# Creating, Building, and Verifying a New App
+| Purpose | Command | Notes |
+| :--- | :--- | :--- |
+| **Stop Server** | `bitcoin-cli stop` | Safely shuts down the `bitcoind` daemon. |
+| **Decode Transaction**| `bitcoin-cli decoderawtransaction "TX_HEX"`| Converts a raw hexadecimal transaction string into a human-readable JSON object. |
+| **List Unspent** | `bitcoin-cli listunspent` | Lists all Unspent Transaction Outputs (UTXOs) available to spend in the default wallet. |
+| **Get Address Info** | `bitcoin-cli getaddressinfo "ADDRESS"` | Provides details about a specific address (e.g., script type, derivation path). |
+| **Check Balance (Secure)**| `bitcoin-cli getbalance "*" 6` | Shows the balance for all accounts that have **6 or more confirmations** (the secure standard). |
 
-Follow these steps to create, build, and verify a new app using the `charms` tool:
+## 💰 Part 2: Wallet Management & Funding
 
-1. **Create a new app**:
-   ```bash
-   charms app new my-token
-   ```
+### 1\. Wallet Creation & Selection
 
-2. **Navigate to the app directory**:
-   ```bash
-   cd ./my-token
-   ```
+You must create and/or select a wallet for all transactional RPC commands.
 
-3. **Unset the `CARGO_TARGET_DIR` environment variable**:
-   ```bash
-   unset CARGO_TARGET_DIR
-   ```
+```bash
+# Create a new, descript-based wallet named "testwallet"
+bitcoin-cli createwallet testwallet
 
-4. **Update dependencies**:
-   ```bash
-   cargo update
-   ```
+# Create a legacy wallet (for general practice)
+bitcoin-cli createwallet "MyNewHotWallet"
 
-5. **Build the app and generate its verification key**:
-   ```bash
-   app_bin=$(charms app build)
-   charms app vk "$app_bin"
-   ```
+# List all wallets currently loaded in the daemon
+bitcoin-cli listwallets
+```
 
-   - The `charms app build` command compiles the app and outputs the path to the binary.
-   - The `charms app vk` command generates and prints the verification key for the binary.
+### 2\. Get Testnet Address (for Funding)
 
-This process ensures your app is properly set up, built, and verified.
+The `-rpcwallet` flag is mandatory when multiple wallets are loaded.
 
-# Example: `ins` and `outs` Configuration
+```bash
+# Get a new Taproot address from the "testwallet"
+bitcoin-cli -rpcwallet=testwallet getnewaddress
 
-Below is an example configuration for `ins` and `outs` using `charms`:
+# Get a new address with a label from the "MyNewHotWallet"
+bitcoin-cli -rpcwallet=MyNewHotWallet getnewaddress "MyFirstReceiveAddress"
+```
+
+### 3\. Get Testnet Funds
+
+Testnet BTC (tBTC) has no real value. Use the following faucets to acquire funds for your addresses:
+
+  * **Mempool.space Faucet:** `https://mempool.space/testnet4/faucet`
+  * **Testnet4.dev Faucet:** `https://faucet.testnet4.dev`
+
+### 4\. Check Wallet Balance
+
+```bash
+bitcoin-cli -rpcwallet=testwallet getbalance
+```
+
+## 🧱 Part 3: Charms App Development Workflow
+
+This section outlines the initial commands for creating and inspecting a programmable asset (Charm) using the `charms` CLI tool.
+
+### 1\. App Creation and Setup
+
+These steps prepare your development environment and build the core application logic.
+
+| Command | Purpose |
+| :--- | :--- |
+| `charms app new my-token` | **Creates a new Rust project** structure for a Charms app named `my-token`. |
+| `cd ./my-token` | **Navigates** into the newly created app directory. |
+| `unset CARGO_TARGET_DIR` | Ensures the build is not directed to a non-standard or temporary location, preventing build errors. |
+| `cargo update` | Updates all Rust dependencies. |
+| `app_bin=$(charms app build)` | **Compiles the Rust code** into a Wasm binary and stores the binary's path in the `app_bin` variable. |
+| `charms app vk "$app_bin"` | **Generates the Verification Key (VK)** for the Wasm binary. The VK is the on-chain representation of your application's logic. |
+
+### 2\. `charms` Command Structure
+
+The main commands available in the `charms` CLI:
+
+| Command | Description |
+| :--- | :--- |
+| `server` | Manages the Charms API Server. |
+| `spell` | **Core Tool:** Used to create, validate, and manage **spells** (the declarative transaction instructions). |
+| `tx` | Tools for working with underlying raw blockchain transactions. |
+| `app` | **Core Tool:** Used for creating, building, and verifying application logic (Wasm). |
+| `wallet` | Wallet-related commands (may integrate with Bitcoin Core or external signers). |
+
+### 3\. Example `ins` and `outs` Configuration (Spell)
+
+This YAML structure is used within a Charms spell to define how assets change hands in a transaction. This example shows an NFT being spent and fungible tokens being created and sent.
 
 ```yaml
 ins:
   - utxo_id: ${in_utxo_1}
     charms:
+      # Charm $00 is the reference NFT that holds the remaining supply state
       $00:
         ticker: MY-TOKEN
-        remaining: 100000
+        remaining: 100000 # The NFT's current state (remaining mintable tokens)
 
 outs:
+  # Output 1: Sends a quantity of the new fungible token to address 1
   - address: ${addr_1}
     charms:
-      $01: 69420
+      $01: 69420 # Sends 69,420 MY-TOKEN
+
+  # Output 2: Sends the NFT (Charm $00) to address 2 with an updated state
   - address: ${addr_2}
     charms:
       $00:
         ticker: MY-TOKEN
-        remaining: 30580
+        remaining: 30580 # New state: 100000 (initial) - 69420 (minted) = 30580
 ```
 
-- **`ins`**: Defines the input UTXO and associated charms. In this example:
-  - `utxo_id` references the input UTXO.
-  - `charms` specifies the token (`ticker`) and its remaining amount.
+  - **`ins`**: Defines the source UTXOs and the assets currently held within them (the state *before* the transaction).
+  - **`outs`**: Defines the destination addresses and the assets that will be created or updated (the state *after* the transaction). This structure allows the application logic to verify the transition (e.g., ensuring `remaining` is correctly reduced by the minted amount).
 
-- **`outs`**: Defines the output addresses and associated charms. In this example:
-  - Each `address` specifies a recipient.
-  - `charms` defines the token or value being sent to each address.
+<!-- end list -->
 
-This configuration demonstrates how to manage token transfers using `charms`.
-
-Usage: charms <COMMAND>
-
-Commands:
-  server       Charms API Server
-  spell        Work with spells
-  tx           Work with underlying blockchain transactions
-  app          Manage apps
-  wallet       Wallet commands
-  completions  Generate shell completion scripts
-  help         Print this message or the help of the given subcommand(s)
-
-Options:
-  -h, --help     Print help
-  -V, --version  Print version
+```
+```
