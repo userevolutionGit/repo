@@ -113,3 +113,6 @@ https://coinfaucet.eu/en/btc-testnet4/
 
 
 bitcoin-cli -testnet4  -rpcwallet=testwallet getbalance
+
+To import the private key
+bitcoin-cli importprivkey <WIF_private_key> "imported_label" true
